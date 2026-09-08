@@ -295,14 +295,6 @@
         <button type="button" class="btn-save-fullscreen" id="save-fullscreen-btn">✔ Confirmar e Insertar Firma</button>
     </div>
 </div>
-<!-- Modal de Cámara Integrada -->
-<div id="camera-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000; z-index: 10000; flex-direction: column; justify-content: center; align-items: center;">
-    <video id="camera-stream" autoplay playsinline style="width: 100%; max-height: 80vh; object-fit: contain;"></video>
-    <div style="display: flex; gap: 20px; margin-top: 20px;">
-        <button type="button" onclick="cerrarCamara()" style="background: var(--err); color: white; border: none; padding: 15px 30px; border-radius: 10px; font-weight: bold; cursor: pointer;">Cancelar</button>
-        <button type="button" onclick="tomarFoto()" style="background: var(--ok); color: white; border: none; padding: 15px 30px; border-radius: 10px; font-weight: bold; cursor: pointer;">📸 Capturar</button>
-    </div>
-</div>
 
 <script>
 (function(){
@@ -571,64 +563,32 @@
         await updateMasterPreview();
     };
 
-    // Variables para la cámara
-        const video = document.getElementById('camera-stream');
-        const cameraModal = document.getElementById('camera-modal');
-        let streamGlobal = null;
+    document.getElementById('camera-upload').onchange = async (e) => {
+        const f = e.target.files[0]; if (!f) return;
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+            const img = new Image();
+            img.onload = async () => {
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = A4_WIDTH * 2; tempCanvas.height = A4_HEIGHT * 2;
+                const scale = Math.min(tempCanvas.width/img.width, tempCanvas.height/img.height);
+                tempCanvas.getContext('2d').drawImage(img, (tempCanvas.width-img.width*scale)/2, (tempCanvas.height-img.height*scale)/2, img.width*scale, img.height*scale);
+                
+                const imgDataB64 = tempCanvas.toDataURL('image/jpeg', 0.85);
+                const singlePdfDoc = await PDFLib.PDFDocument.create();
+                const page = singlePdfDoc.addPage([A4_WIDTH, A4_HEIGHT]);
+                const embeddedImg = await singlePdfDoc.embedJpg(imgDataB64);
+                page.drawImage(embeddedImg, { x: 0, y: 0, width: A4_WIDTH, height: A4_HEIGHT });
+                const singlePdfBytes = await singlePdfDoc.save();
 
-    // Reemplazamos el comportamiento del botón "📷 + Foto Escáner"
-    document.querySelector('.btn-camera-mode').onclick = async () => {
-        try {
-            // Pedimos acceso a la cámara trasera directamente en la web
-            streamGlobal = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment' },
-                audio: false
-            });
-            video.srcObject = streamGlobal;
-            cameraModal.style.display = 'flex';
-        } catch (err) {
-            alert("Error al abrir la cámara. Asegurate de tener los permisos habilitados.");
-        }
+                uploadedDocuments.push({ type: 'image', name: f.name || `Escaneo_${Date.now()}.jpg`, bytes: singlePdfBytes });
+                e.target.value = '';
+                await updateMasterPreview();
+            };
+            img.src = ev.target.result;
+        };
+        reader.readAsDataURL(f);
     };
-
-    function cerrarCamara() {
-        cameraModal.style.display = 'none';
-        if (streamGlobal) {
-            streamGlobal.getTracks().forEach(track => track.stop()); // Apaga la lente
-        }
-    }
-
-    async function tomarFoto() {
-        // 1. Creamos un canvas temporal en la memoria RAM
-        const canvasTemp = document.createElement('canvas');
-        canvasTemp.width = video.videoWidth;
-        canvasTemp.height = video.videoHeight;
-        canvasTemp.getContext('2d').drawImage(video, 0, 0, canvasTemp.width, canvasTemp.height);
-        
-        // 2. Apagamos la cámara y cerramos el modal
-        cerrarCamara();
-
-        // 3. Convertimos esa captura a formato imagen y la metemos a tu PDF
-        const imgDataB64 = canvasTemp.toDataURL('image/jpeg', 0.85);
-        
-        const singlePdfDoc = await PDFLib.PDFDocument.create();
-        const page = singlePdfDoc.addPage([A4_WIDTH, A4_HEIGHT]);
-        const embeddedImg = await singlePdfDoc.embedJpg(imgDataB64);
-        
-        // Centramos la imagen en el A4
-        const scale = Math.min(A4_WIDTH / canvasTemp.width, A4_HEIGHT / canvasTemp.height);
-        page.drawImage(embeddedImg, { 
-            x: (A4_WIDTH - canvasTemp.width * scale) / 2, 
-            y: (A4_HEIGHT - canvasTemp.height * scale) / 2, 
-            width: canvasTemp.width * scale, 
-            height: canvasTemp.height * scale 
-        });
-        
-        const singlePdfBytes = await singlePdfDoc.save();
-        
-        uploadedDocuments.push({ type: 'image', name: `Escaneo_${Date.now()}.jpg`, bytes: singlePdfBytes });
-        await updateMasterPreview();
-    }
 
     // PROCESAMIENTO FINAL CORREGIDO Y SANADO CONTRA ESPACIOS OCULTOS
     document.getElementById('generate-btn').onclick = async () => {
@@ -694,7 +654,6 @@
             const dateStr = new Date().toLocaleDateString().replace(/\//g, '-');
             const fileName = `${nameInput.replace(/\s+/g, '_')}_${dniInput}_${dateStr}.pdf`;
 
-            // ... (Tu código actual de descarga local)
             const blob = new Blob([finalPdfBytes], { type: "application/pdf" });
             //const link = document.createElement('a');
             //link.href = URL.createObjectURL(blob);
