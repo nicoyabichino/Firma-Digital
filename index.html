@@ -572,31 +572,31 @@
     };
 
     // Variables para la cámara
-const video = document.getElementById('camera-stream');
-const cameraModal = document.getElementById('camera-modal');
-let streamGlobal = null;
+        const video = document.getElementById('camera-stream');
+        const cameraModal = document.getElementById('camera-modal');
+        let streamGlobal = null;
 
-// Reemplazamos el comportamiento del botón "📷 + Foto Escáner"
-document.querySelector('.btn-camera-mode').onclick = async () => {
-    try {
-        // Pedimos acceso a la cámara trasera directamente en la web
-        streamGlobal = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment' },
-            audio: false
-        });
-        video.srcObject = streamGlobal;
-        cameraModal.style.display = 'flex';
-    } catch (err) {
-        alert("Error al abrir la cámara. Asegurate de tener los permisos habilitados.");
-    }
-};
+    // Reemplazamos el comportamiento del botón "📷 + Foto Escáner"
+    document.querySelector('.btn-camera-mode').onclick = async () => {
+        try {
+            // Pedimos acceso a la cámara trasera directamente en la web
+            streamGlobal = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment' },
+                audio: false
+            });
+            video.srcObject = streamGlobal;
+            cameraModal.style.display = 'flex';
+        } catch (err) {
+            alert("Error al abrir la cámara. Asegurate de tener los permisos habilitados.");
+        }
+    };
 
-function cerrarCamara() {
-    cameraModal.style.display = 'none';
-    if (streamGlobal) {
-        streamGlobal.getTracks().forEach(track => track.stop()); // Apaga la lente
+    function cerrarCamara() {
+        cameraModal.style.display = 'none';
+        if (streamGlobal) {
+            streamGlobal.getTracks().forEach(track => track.stop()); // Apaga la lente
+        }
     }
-}
 
     async function tomarFoto() {
         // 1. Creamos un canvas temporal en la memoria RAM
